@@ -129,6 +129,7 @@ const GenerateDocs = () => {
         throw new Error("No documents found")
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const mappedDocuments: Documentation[] = data.documents.map((doc: any) => ({
         id: doc.id,
         content: doc.content || "",
@@ -176,6 +177,7 @@ const GenerateDocs = () => {
     if (isAllDocsOpen) {
       fetchAllDocuments()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAllDocsOpen])
 
   useEffect(() => {

@@ -53,6 +53,7 @@ export default function ProjectsPage() {
 
   useEffect(() => {
     fetchSimulations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchSimulations = async () => {

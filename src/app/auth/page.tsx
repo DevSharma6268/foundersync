@@ -28,7 +28,7 @@ export default function AuthPage() {
                 const { data: { session } } = await supabase.auth.getSession()
                 if (session) {
                     // Check if user exists in our users table
-                    const { data: userData, error: userError } = await supabase
+                    const { error: userError } = await supabase
                         .from('users')
                         .select('*')
                         .eq('id', session.user.id)
@@ -88,7 +88,7 @@ export default function AuthPage() {
             if (!data.user) throw new Error("No user data returned")
 
             // Verify user exists in our users table
-            const { data: userData, error: userError } = await supabase
+            const { error: userError } = await supabase
                 .from('users')
                 .select('*')
                 .eq('id', data.user.id)

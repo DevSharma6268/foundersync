@@ -249,6 +249,7 @@ export default function Dashboard() {
         speechSynthesis.removeEventListener("voiceschanged", loadVoices)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const startRecording = () => {
