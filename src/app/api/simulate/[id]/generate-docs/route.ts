@@ -15,54 +15,6 @@ interface GenerationContext {
     }>;
 }
 
-async function generateDocSection(section: string, context: GenerationContext, agentRole: string) {
-    const sectionPrompt = `
-You are the ${agentRole.toUpperCase()} of ${context.startupName}. Generate a CONCISE perspective on:
-
-${section}
-
-Focus on your role-specific insights:
-- CEO: Strategic vision and business impact
-- CTO: Technical implementation and architecture
-- Product Manager: User experience and feature roadmap
-- Designer: UI/UX design approach
-- Marketing: Market positioning and promotion
-
-IMPORTANT: Your response must be a valid JSON object with EXACTLY these fields:
-{
-    "message": "Your role-specific insights here (2-3 focused bullet points)",
-    "tone": "professional",
-    "emotion": "confident"
-}
-
-REQUIREMENTS:
-- Keep each bullet point under 100 characters
-- Focus on your role's perspective
-- Be specific and actionable
-- Use clear, professional language
-`;
-
-    try {
-        const response = await generateAgentResponse(agentRole, sectionPrompt, context);
-
-        if (!response || !response.message) {
-            throw new Error('Invalid response structure');
-        }
-
-        return {
-            content: response.message.trim(),
-            tone: response.tone || 'professional',
-            emotion: response.emotion || 'confident'
-        };
-    } catch (error) {
-        console.error('Section generation error:', error);
-        return {
-            content: `${agentRole.toUpperCase()} perspective unavailable: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            tone: 'professional',
-            emotion: 'neutral'
-        };
-    }
-}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
     try {
