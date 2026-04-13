@@ -16,6 +16,65 @@ interface ConversationContext {
         timestamp: string;
         agent_name: string;
     }>;
+    /** Shared team room: answer only as this role, not as other teammates */
+    teamRoomReply?: boolean;
+}
+
+export const TEAM_ROOM_AGENT_IDS = ["ceo", "cto", "pm", "designer", "marketing"] as const
+export type TeamRoomAgentId = (typeof TEAM_ROOM_AGENT_IDS)[number]
+
+export async function classifyTeamRoomResponder(userMessage: string): Promise<TeamRoomAgentId> {
+    const prompt = `You route a founder's message in a startup team chat to exactly ONE teammate who should answer.
+
+Teammates (use ONLY these lowercase ids):
+- ceo — Alex Chen, CEO: strategy, vision, fundraising, business model, leadership
+- cto — Sarah Kim, CTO: engineering, architecture, infra, security, APIs, stack
+- pm — Mike Johnson, Product Manager: roadmap, prioritization, users, requirements, metrics
+- designer — Emma Davis, Designer: UX, UI, design system, branding, research
+- marketing — Jordan Lee, Marketing: GTM, growth, messaging, ads, positioning
+
+Rules:
+- If the user names, @mentions, or clearly addresses one person or role (e.g. "Sarah", "CTO", "design"), pick that id.
+- Match topic to expertise (e.g. "landing page copy" → marketing; "database" → cto; "wireframe" → designer).
+- If still unclear, pick ceo.
+
+User message:
+${JSON.stringify(userMessage)}
+
+Reply with ONLY valid JSON: {"agent":"cto"}
+No markdown, no extra text.`
+
+    const response = await fetch(`${GEMINI_API_ENDPOINT}?key=${process.env.GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2, maxOutputTokens: 256 },
+        }),
+    })
+
+    if (!response.ok) {
+        console.warn("classifyTeamRoomResponder: API error, defaulting to ceo")
+        return "ceo"
+    }
+
+    const data = await response.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text || typeof text !== "string") {
+        return "ceo"
+    }
+
+    let cleaned = text.trim().replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "")
+    try {
+        const parsed = JSON.parse(cleaned) as { agent?: string }
+        const id = parsed.agent?.toLowerCase().trim()
+        if (id && TEAM_ROOM_AGENT_IDS.includes(id as TeamRoomAgentId)) {
+            return id as TeamRoomAgentId
+        }
+    } catch {
+        /* fall through */
+    }
+    return "ceo"
 }
 
 export async function generateAgentResponse(
@@ -26,7 +85,9 @@ export async function generateAgentResponse(
 ) {
     try {
         const roleContext = getRoleSpecificContext(agentName);
-        const prompt = `You are the ${agentName.toUpperCase()} of ${context.startupName}, a startup in the ${context.industry} industry.
+        const roleTitle = `${agentName.toUpperCase()} of ${context.startupName}`;
+
+        const prompt = `You are the ${roleTitle}, a startup in the ${context.industry} industry.
 
 The startup's description is: ${context.description}
 
@@ -39,8 +100,8 @@ ${context.conversationHistory.map(msg =>
 
 User's question: ${userMessage}
 
-IMPORTANT INSTRUCTIONS:
-1. Respond as the ${agentName} role, maintaining character and expertise
+${context.teamRoomReply ? "You are posting in the shared team room under YOUR name and role only. Do not impersonate or quote other teammates speaking; give your own view.\n\n" : ""}IMPORTANT INSTRUCTIONS:
+1. Respond as the ${agentName.toUpperCase()} role, maintaining character and expertise
 2. Keep responses concise and focused (5-6 sentences max)
 3. Be direct and actionable in your advice
 4. Use natural, conversational language

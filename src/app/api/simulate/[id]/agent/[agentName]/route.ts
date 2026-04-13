@@ -3,7 +3,7 @@ import { createServerSupabaseClient } from "@/lib/supabase-server"
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string; agentName: string } }
+    { params }: { params: Promise<{ id: string; agentName: string }> }
 ) {
     try {
         const accessToken = request.headers.get("Authorization")?.split("Bearer ")[1]
@@ -18,8 +18,7 @@ export async function PUT(
             return new NextResponse("Unauthorized", { status: 401 })
         }
 
-        const simulationId = params.id
-        const agentName = params.agentName
+        const { id: simulationId, agentName } = await params
         const body = await request.json()
         const { field, value } = body
 

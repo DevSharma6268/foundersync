@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
+import { agentResponseWithThread, isDirectThreadRow, THREAD_DIRECT } from "@/lib/conversation-thread"
 import { generateAgentResponse } from "@/lib/gemini"
 
 interface Conversation {
@@ -40,8 +41,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             return NextResponse.json({ error: "Simulation not found" }, { status: 404 })
         }
 
-        // Get all conversations for this agent in this simulation
-        const { data: conversations, error: convError } = await supabase
+        const { data: rows, error: convError } = await supabase
             .from('conversations')
             .select('*')
             .eq('simulation_id', simulationId)
@@ -52,6 +52,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
             console.error("Error fetching conversations:", convError)
             return NextResponse.json({ error: "Failed to load conversations" }, { status: 500 })
         }
+
+        const conversations = (rows ?? []).filter(isDirectThreadRow)
 
         return NextResponse.json({ conversations, simulation })
     } catch (error) {
@@ -101,13 +103,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             }, { status: 404 });
         }
 
-        // Get ALL recent conversations for this simulation
-        const { data: allConversations, error: convError } = await supabase
+        const { data: recentRows, error: convError } = await supabase
             .from('conversations')
             .select('agent_name, user_message, agent_response, created_at')
             .eq('simulation_id', simulationId)
-            .order('created_at', { ascending: true })  // Changed to ascending to maintain chronological order
-            .limit(15);
+            .order('created_at', { ascending: false })
+            .limit(80);
 
         if (convError) {
             console.error("Error fetching conversations:", convError);
@@ -117,14 +118,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             }, { status: 500 });
         }
 
-        // Create a unified conversation history
-        const conversationHistory: Conversation[] = allConversations?.map(conv => ({
+        const directRecent = (recentRows ?? []).filter(isDirectThreadRow).slice(0, 15).reverse();
+
+        const conversationHistory: Conversation[] = directRecent.map(conv => ({
             role: "user",
             content: conv.user_message,
             response: conv.agent_response.message,
             timestamp: conv.created_at,
             agent_name: conv.agent_name
-        })) || [];
+        }));
 
         try {
             // Generate agent response with full conversation context
@@ -147,7 +149,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                         simulation_id: simulationId,
                         agent_name: agentName,
                         user_message: message,
-                        agent_response: response
+                        agent_response: agentResponseWithThread(response, THREAD_DIRECT),
                     }
                 ]);
 

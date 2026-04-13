@@ -4,6 +4,7 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
+import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -167,6 +168,8 @@ const user = {
 
 export default function Dashboard() {
   const params = useParams()
+  const simulationId =
+    typeof params?.id === "string" ? params.id : Array.isArray(params?.id) ? params.id[0] ?? "" : ""
 
   const [message, setMessage] = useState("")
   const [isRecording, setIsRecording] = useState(false)
@@ -179,8 +182,8 @@ export default function Dashboard() {
   // Speech recognition setup
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null)
 
-  // Chat states
-  const [activeAgent, setActiveAgent] = useState<string | null>(null)
+  // Chat states — default to CEO private thread (team room is a separate page)
+  const [activeAgent, setActiveAgent] = useState<string | null>("ceo")
   const [conversations, setConversations] = useState<Record<string, Message[]>>({})
   const [isAgentSpeaking, setIsAgentSpeaking] = useState<Record<string, boolean>>({})
 
@@ -663,6 +666,12 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(() => {
+    if (!simulationId) return
+    void loadAgentConversations("ceo")
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load default agent thread when simulation changes
+  }, [simulationId])
+
   // Add keypress handler for Enter key
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -782,9 +791,25 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <h2 className="text-sm font-semibold">AI Team</h2>
-                    <p className="text-xs text-muted-foreground">Select an agent</p>
+                    <p className="text-xs text-muted-foreground">Private chats + team room</p>
                   </div>
                 </div>
+              </div>
+
+              <div className="px-4 pb-2">
+                {simulationId ? (
+                  <Button className="w-full justify-start gap-2" variant="secondary" asChild>
+                    <Link href={`/dashboard/simulation/${simulationId}/team-room`}>
+                      <Users className="h-4 w-4 shrink-0" />
+                      <span className="truncate">Team room (shared chat)</span>
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button className="w-full justify-start gap-2" variant="secondary" disabled>
+                    <Users className="h-4 w-4 shrink-0" />
+                    <span className="truncate">Team room (shared chat)</span>
+                  </Button>
+                )}
               </div>
 
               {/* Agents List */}

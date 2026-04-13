@@ -1,24 +1,9 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
-import { generateAgentResponse } from "@/lib/gemini"
 
-interface GenerationContext {
-    startupName: string;
-    description: string;
-    industry: string;
-    conversationHistory: Array<{
-        role: string;
-        content: string;
-        response: string;
-        timestamp: string;
-        agent_name: string;
-    }>;
-}
-
-
-export async function POST(request: Request, { params }: { params: { id: string } }) {
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const simulationId = params.id;
+        const { id: simulationId } = await params
         const accessToken = request.headers.get("Authorization")?.split("Bearer ")[1];
 
         if (!accessToken) {

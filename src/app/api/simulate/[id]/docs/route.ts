@@ -11,9 +11,9 @@ interface DocumentationResponse {
     };
 }
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
-        const simulationId = params.id;
+        const { id: simulationId } = await params
         const accessToken = request.headers.get("Authorization")?.split("Bearer ")[1];
 
         if (!accessToken) {
