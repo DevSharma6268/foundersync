@@ -20,3 +20,4 @@
 - Next JS and Gemini
 - Socket.IO (for real-time)
 - Supabase 
+    
